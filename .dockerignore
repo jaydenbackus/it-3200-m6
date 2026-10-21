@@ -2,4 +2,9 @@
 __pycache__
 *.pyc
 .venv
+.env
 README.md
+docker-compose.yml
+monitoring/
+docs/
+scripts/

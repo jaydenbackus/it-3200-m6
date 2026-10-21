@@ -1,0 +1,121 @@
+// Grafana Alloy: the single collector for this host.
+// Metrics -> Prometheus (remote write). Logs -> Loki (push API).
+
+// ---------- Destinations ----------
+
+prometheus.remote_write "local" {
+  endpoint {
+    url = "http://prometheus:9090/api/v1/write"
+  }
+}
+
+loki.write "local" {
+  endpoint {
+    url = "http://loki:3100/loki/api/v1/push"
+  }
+}
+
+// ---------- Application metrics ----------
+
+// Flask app's /metrics endpoint (prometheus-flask-exporter)
+prometheus.scrape "student_app" {
+  targets         = [{"__address__" = "app:3000"}]
+  job_name        = "student-app"
+  scrape_interval = "15s"
+  forward_to      = [prometheus.remote_write.local.receiver]
+}
+
+// ---------- Host metrics (replaces node_exporter) ----------
+
+prometheus.exporter.unix "host" {
+  procfs_path = "/host/proc"
+  sysfs_path  = "/host/sys"
+  rootfs_path = "/rootfs"
+}
+
+prometheus.scrape "host" {
+  targets         = prometheus.exporter.unix.host.targets
+  job_name        = "host"
+  scrape_interval = "15s"
+  forward_to      = [prometheus.remote_write.local.receiver]
+}
+
+// ---------- Container metrics (replaces cAdvisor) ----------
+
+prometheus.exporter.cadvisor "containers" {
+  docker_host            = "unix:///var/run/docker.sock"
+  docker_only            = true
+  store_container_labels = false
+  storage_duration       = "5m"
+}
+
+prometheus.scrape "containers" {
+  targets         = prometheus.exporter.cadvisor.containers.targets
+  job_name        = "containers"
+  scrape_interval = "15s"
+  forward_to      = [prometheus.remote_write.local.receiver]
+}
+
+// ---------- Monitoring stack self-metrics ----------
+
+prometheus.exporter.self "alloy" { }
+
+prometheus.scrape "stack" {
+  targets = array.concat(
+    prometheus.exporter.self.alloy.targets,
+    [
+      {"__address__" = "prometheus:9090", "component" = "prometheus"},
+      {"__address__" = "loki:3100", "component" = "loki"},
+      {"__address__" = "grafana:3000", "component" = "grafana"},
+    ],
+  )
+  job_name        = "monitoring-stack"
+  scrape_interval = "30s"
+  forward_to      = [prometheus.remote_write.local.receiver]
+}
+
+// ---------- Container logs (replaces Promtail) ----------
+
+discovery.docker "containers" {
+  host = "unix:///var/run/docker.sock"
+}
+
+// Turn Docker metadata into a small, fixed set of Loki labels
+discovery.relabel "container_logs" {
+  targets = []
+
+  rule {
+    source_labels = ["__meta_docker_container_name"]
+    regex         = "/(.*)"
+    target_label  = "container"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_label_com_docker_compose_service"]
+    target_label  = "service"
+  }
+
+  rule {
+    source_labels = ["__meta_docker_container_log_stream"]
+    target_label  = "stream"
+  }
+}
+
+loki.source.docker "containers" {
+  host          = "unix:///var/run/docker.sock"
+  targets       = discovery.docker.containers.targets
+  labels        = {"host" = constants.hostname}
+  relabel_rules = discovery.relabel.container_logs.rules
+  forward_to    = [loki.process.redact.receiver]
+}
+
+// Scrub anything that looks like a credential before it is stored
+loki.process "redact" {
+  stage.replace {
+    // Only the captured group (the value) is replaced, so "token=abc" becomes "token=<redacted>"
+    expression = "(?i)(?:password|passwd|secret|token|api[_-]?key)=(\\S+)"
+    replace    = "<redacted>"
+  }
+
+  forward_to = [loki.write.local.receiver]
+}

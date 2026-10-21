@@ -14,5 +14,7 @@ COPY . .
 # The app listens on port 3000
 EXPOSE 3000
 
-# Run with gunicorn, a production-ready WSGI server
-CMD ["gunicorn", "--bind", "0.0.0.0:3000", "app:app"]
+# Run with gunicorn, a production-ready WSGI server.
+# One worker process keeps Prometheus metrics in a single registry; threads handle concurrency.
+# Access logs go to stdout so they are collected by Alloy.
+CMD ["gunicorn", "--bind", "0.0.0.0:3000", "--workers", "1", "--threads", "4", "--access-logfile", "-", "app:app"]
