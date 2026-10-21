@@ -3,7 +3,7 @@
 A small Flask web application that displays my name and UVU student ID. It is packaged with Docker and deployed to an AWS EC2 Linux virtual machine.
 
 - **Name:** Jayden Backus
-- **UVU Student ID:** [removed]
+- **UVU Student ID:** set by `STUDENT_ID` in `.env` (kept out of the repository)
 - **Course:** IT 3200
 
 ## Project structure

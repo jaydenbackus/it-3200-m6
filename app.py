@@ -23,7 +23,8 @@ metrics.info("student_app_info", "Student app build information", version="1.1.0
 
 STUDENT = {
     "name": "Jayden Backus",
-    "student_id": "[removed]",
+    # Kept out of the repository; set STUDENT_ID in .env
+    "student_id": os.getenv("STUDENT_ID", "not set"),
     "course": "IT 3200",
 }
 

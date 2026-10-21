@@ -10,6 +10,7 @@ services:
       - "3000:3000"
     environment:
       ENABLE_SIMULATION: ${ENABLE_SIMULATION:-false}
+      STUDENT_ID: ${STUDENT_ID:-}
     mem_limit: 128m
     restart: unless-stopped
 
