@@ -32,11 +32,13 @@ SIMULATION_ENABLED = os.getenv("ENABLE_SIMULATION", "false").lower() == "true"
 
 
 @app.before_request
-def restrict_metrics():
-    # Only the private Docker network (where Alloy runs) may read /metrics
-    if request.path == "/metrics" and not ipaddress.ip_address(request.remote_addr).is_private:
-        log.warning("blocked /metrics request from %s", request.remote_addr)
-        abort(403)
+def restrict_internal_routes():
+    # /metrics and the demo routes answer only private addresses (Alloy, or the host itself).
+    # Public callers get 403 for /metrics and 404 for the demo routes, which stay hidden.
+    if request.path == "/metrics" or request.path.startswith("/simulate/"):
+        if not ipaddress.ip_address(request.remote_addr).is_private:
+            log.warning("blocked %s request from public address", request.path)
+            abort(403 if request.path == "/metrics" else 404)
 
 
 @app.route("/")
