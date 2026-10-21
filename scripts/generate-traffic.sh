@@ -2,7 +2,8 @@
 # Sends a mix of normal, 404, error, and slow requests so dashboards and alerts have data.
 # Error/slow routes only work when the app runs with ENABLE_SIMULATION=true.
 # Usage: ./scripts/generate-traffic.sh [base-url] [duration-seconds]
-set -euo pipefail
+# No "set -e": a failed request (app down) must not stop the generator
+set -uo pipefail
 
 BASE_URL="${1:-http://localhost:3000}"
 DURATION="${2:-300}"
