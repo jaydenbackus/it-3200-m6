@@ -25,7 +25,7 @@ I used four open-source tools:
 - **Loki** stores logs, indexing only their labels.
 - **Grafana** draws dashboards from both.
 
-**Alloy was the key choice.** Many tutorials run three collectors: node_exporter for host metrics, cAdvisor for container metrics, and Promtail for logs. The Loki docs say Promtail reached end of life on March 2, 2026, and that new work happens in Alloy. Alloy also contains node_exporter and cAdvisor as built-in components, so one agent and one config file replace all three. On a 2 GB server, that matters.
+**Alloy was the key choice.** Many tutorials run three collectors: node_exporter for host metrics, cAdvisor for container metrics, and Promtail for logs. Grafana's [Promtail migration guide](https://grafana.com/docs/alloy/latest/set-up/migrate/from-promtail/) says Promtail reached end of life on March 2, 2026, and that new work happens in Alloy. Alloy also contains node_exporter and cAdvisor as built-in components, so one agent and one config file replace all three. On a 2 GB server, that matters.
 
 **Prometheus and Loki fit together.** Both label data the same way, so `service="app"` finds the app's metrics and its logs. A one-line library, `prometheus-flask-exporter`, makes Flask speak Prometheus's format. Loki's label-only index keeps it far lighter than Elasticsearch.
 
@@ -43,7 +43,7 @@ Alloy scrapes the app's `/metrics` every 15 seconds, reads host and container st
 
 *Lesson learned:* key pairs belong to one region. My old key didn't exist in mine, so SSH refused me. I imported my public key (`ssh-keygen -y -f key.pem`) under **Key pairs → Import key pair** and relaunched.
 
-**2. Install Docker.** Amazon Linux's Docker package lacks the Compose and Buildx plugins, so I added them as Docker's docs describe:
+**2. Install Docker.** Amazon Linux's Docker package lacks the Compose and Buildx plugins, so I added them as Docker's [Compose install guide](https://docs.docker.com/compose/install/linux/) describes:
 
 ```bash
 sudo dnf install -y docker git && sudo systemctl enable --now docker
@@ -63,7 +63,7 @@ chmod 600 .env
 sudo docker compose up -d --build
 ```
 
-Grafana loads its data sources and dashboard from files at startup, so nothing needs clicking.
+Grafana loads its data sources and dashboard from files at startup, following its [provisioning docs](https://grafana.com/docs/grafana/latest/administration/provisioning/), so nothing needs clicking.
 
 **The Alloy config** reads like a pipeline: each component's output feeds the next. Here is the log path:
 
@@ -100,7 +100,7 @@ loki.process "redact" {
 
 **Dashboard.** One Grafana dashboard shows app status, request rate, error ratio, latency percentiles, per-container and host resources, and live logs.
 
-**Alerts.** Prometheus checks six rules:
+**Alerts.** Prometheus checks six [alerting rules](https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/):
 
 | Alert | Fires when |
 |---|---|
@@ -132,10 +132,6 @@ One surprise: the error alert kept firing during the outage, though a stopped ap
 
 The test also exposed a bug in my load generator. It quit when the app went down, because `set -e` treated one failed request as fatal. I removed it.
 
-<!-- SCREENSHOT: dashboard during the test (error ratio and latency in red) -->
-<!-- SCREENSHOT: Alerting page with StudentAppHighErrorRate and StudentAppDown firing -->
-<!-- SCREENSHOT: Explore → Loki, {service="app"} |= " 500 " -->
-<!-- SCREENSHOT: browser showing 403 Forbidden for /metrics -->
 
 ## 6. Security considerations
 
@@ -143,9 +139,9 @@ The test also exposed a bug in my load generator. It quit when the app went down
 - **Unauthenticated internals.** Loki and Prometheus accept data without a password. That is safe only because nothing outside the server can reach them.
 - **App endpoints.** `/metrics` returns 403 to the public, and the demo routes return 404, so outsiders can neither read internal numbers nor trigger slow requests to tie up the app.
 - **Grafana.** A random admin password lives in `.env`, which Git ignores. Sign-up and anonymous access are off. Grafana runs over plain HTTP; a real deployment would add TLS.
-- **Privileged collector.** Alloy reads the Docker socket and host files, and control of the Docker socket means control of the host. I mount everything read-only, pin the image version, and keep Alloy's web page private.
-- **Logs.** Alloy blanks credential-like values before storage. Access logs hold client IPs, which count as personal data, so Loki deletes logs after seven days.
-- **Repository.** No keys, passwords, or server addresses are committed. `.gitignore` excludes `.env` and `*.pem`.
+- **Privileged collector.** Alloy's [cAdvisor component docs](https://grafana.com/docs/alloy/latest/reference/components/prometheus/prometheus.exporter.cadvisor/) require privileged mode, the Docker socket, and host mounts, and control of the Docker socket means control of the host. I mount everything read-only, pin the image version, and keep Alloy's web page private.
+- **Logs.** Alloy blanks credential-like values before storage. Access logs hold client IPs, which count as personal data, so Loki deletes logs after seven days, configured per its [retention docs](https://grafana.com/docs/loki/latest/operations/storage/retention/).
+- **Repository.** The repository holds no keys, passwords, or personal IDs; `.env` supplies them on the server, and `.gitignore` excludes `.env` and `*.pem`.
 
 ## 7. Conclusion
 
@@ -153,15 +149,11 @@ One `docker compose up` gave my app metrics, logs, a dashboard, and alerts that 
 
 ## References
 
-- Grafana Alloy: https://grafana.com/docs/alloy/latest/
-- Migrate from Promtail to Alloy: https://grafana.com/docs/alloy/latest/set-up/migrate/from-promtail/
-- Promtail end-of-life notice: https://grafana.com/docs/loki/latest/send-data/promtail/
-- Alloy `prometheus.exporter.cadvisor`: https://grafana.com/docs/alloy/latest/reference/components/prometheus/prometheus.exporter.cadvisor/
-- Alloy `loki.source.docker`: https://grafana.com/docs/alloy/latest/reference/components/loki/loki.source.docker/
-- Loki retention: https://grafana.com/docs/loki/latest/operations/storage/retention/
-- Prometheus alerting rules: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
-- Prometheus storage: https://prometheus.io/docs/prometheus/latest/storage/
-- Grafana provisioning: https://grafana.com/docs/grafana/latest/administration/provisioning/
-- prometheus-flask-exporter: https://github.com/rycus86/prometheus_flask_exporter
-- Install the Docker Compose plugin: https://docs.docker.com/compose/install/linux/
-- Amazon EC2 key pairs: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/ec2-key-pairs.html
+The official documentation I used:
+
+- Grafana Alloy, *Migrate from Promtail to Grafana Alloy*: https://grafana.com/docs/alloy/latest/set-up/migrate/from-promtail/
+- Grafana Alloy, *prometheus.exporter.cadvisor*: https://grafana.com/docs/alloy/latest/reference/components/prometheus/prometheus.exporter.cadvisor/
+- Grafana Loki, *Log retention*: https://grafana.com/docs/loki/latest/operations/storage/retention/
+- Prometheus, *Alerting rules*: https://prometheus.io/docs/prometheus/latest/configuration/alerting_rules/
+- Grafana, *Provision Grafana*: https://grafana.com/docs/grafana/latest/administration/provisioning/
+- Docker, *Install the Docker Compose plugin*: https://docs.docker.com/compose/install/linux/
