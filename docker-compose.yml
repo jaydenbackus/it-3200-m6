@@ -1,6 +1,7 @@
 # Student app + observability stack (Grafana Alloy, Prometheus, Loki, Grafana).
-# Only the app (3000) and Grafana (3001) are published publicly; everything else
-# binds to 127.0.0.1 on the host and is reachable only through an SSH tunnel.
+# The app (3000), Grafana (3001), and Prometheus (9090) are published on the host;
+# the EC2 security group limits 3001 and 9090 to the owner's IP. Loki and Alloy
+# bind to 127.0.0.1 and are reachable only through an SSH tunnel.
 
 services:
   app:
@@ -54,7 +55,8 @@ services:
       - ./monitoring/prometheus:/etc/prometheus:ro
       - prometheus-data:/prometheus
     ports:
-      - "127.0.0.1:9090:9090"
+      # No login: the security group must restrict 9090 to a single trusted IP
+      - "9090:9090"
     mem_limit: 256m
     restart: unless-stopped
 

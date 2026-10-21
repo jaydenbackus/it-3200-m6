@@ -37,7 +37,8 @@ docker compose ps
 
 - App: `http://<PUBLIC-IP>:3000`
 - Grafana: `http://<PUBLIC-IP>:3001` (open port 3001 to **your IP only** in the security group)
-- Prometheus, Loki, and Alloy UIs bind to `127.0.0.1` on the VM. Reach them with an SSH tunnel:
-  `ssh -i key.pem -L 9090:localhost:9090 -L 12345:localhost:12345 ec2-user@<PUBLIC-IP>`
+- Prometheus: `http://<PUBLIC-IP>:9090` (open port 9090 to **your IP only**; Prometheus has no login)
+- Loki and Alloy bind to `127.0.0.1` on the VM. Reach Alloy's UI with an SSH tunnel:
+  `ssh -i key.pem -L 12345:localhost:12345 ec2-user@<PUBLIC-IP>`
 
 To demo alerts, set `ENABLE_SIMULATION=true` in `.env`, run `docker compose up -d`, and then run `./scripts/generate-traffic.sh`.

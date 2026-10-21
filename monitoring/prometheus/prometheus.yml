@@ -1,11 +1,17 @@
 # Prometheus is the metrics store and alert rule engine.
-# It does not scrape anything itself: Grafana Alloy collects all metrics
-# and pushes them in through the remote-write receiver.
+# Grafana Alloy collects the app, host, and container metrics and pushes them
+# in through the remote-write receiver. Prometheus scrapes only itself.
 
 global:
+  scrape_interval: 15s
   evaluation_interval: 15s
   external_labels:
     environment: it-3200-ec2
 
 rule_files:
   - /etc/prometheus/alerts.yml
+
+scrape_configs:
+  - job_name: "prometheus"
+    static_configs:
+      - targets: ["localhost:9090"]

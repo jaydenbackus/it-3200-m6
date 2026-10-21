@@ -64,7 +64,6 @@ prometheus.scrape "stack" {
   targets = array.concat(
     prometheus.exporter.self.alloy.targets,
     [
-      {"__address__" = "prometheus:9090", "component" = "prometheus"},
       {"__address__" = "loki:3100", "component" = "loki"},
       {"__address__" = "grafana:3000", "component" = "grafana"},
     ],
